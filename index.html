@@ -172,7 +172,74 @@
 <li>如果reset操作耗时较久，“较新的virtio legacy驱动”将导致cpu一直处于等待read STATUS响应的状态；而“virtio modern驱动”可以通过msleep主动触发任务调度。</li>
 </ul>
 <p>&nbsp;</p>
-<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4>
+<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><p>（<strong>注意：我们描述的是virtio硬化的问题，虚机场景是指通过vfio-pci直通给VM的使用场景</strong>）</p>
+<table>
+<thead>
+<tr>
+<th align="left">驱动</th>
+<th>支持裸机</th>
+<th>支持虚机</th>
+<th>支持同步</th>
+<th>硬件复杂度<br />（为支持同步）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">较老的legacy virtio 0.95驱动</td>
+<td>N</td>
+<td>N：直通无特殊处理<br />Y-：直通，但QEMU quirk BAR然后同步等待</td>
+<td>N</td>
+<td>-</td>
+</tr>
+<tr>
+<td align="left">较新的legacy virtio 0.95驱动</td>
+<td>Y-</td>
+<td>Y-</td>
+<td>Y-</td>
+<td>High</td>
+</tr>
+<tr>
+<td align="left">modern virtio 1.0/1.1驱动</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>Low</td>
+</tr>
+</tbody></table>
+<p>&nbsp;</p>
+<ul>
+<li><p>较老的legacy驱动</p>
+<ul>
+<li>不支持裸机，目前无任何办法</li>
+<li>对虚机的支持需要hypervisor辅助：<ul>
+<li>不辅助的话无法支持</li>
+<li>辅助方式：截获virtio BAR的访问，对于STATUS clear需实现等待机制</li>
+</ul>
+</li>
+<li>不支持reset同步</li>
+</ul>
+</li>
+<li><p>较新的legacy驱动</p>
+<ul>
+<li>支持裸机，在read STATUS回复时需要保证STATUS clear已完成</li>
+<li>支持虚机：<ul>
+<li>截获virtio BAR的访问，对于STATUS clear需实现等待机制</li>
+<li>无需截获，由硬件保证“在read STATUS回复时需要保证STATUS clear已完”。此种场景下关键的问题是：hypervisor本身感知不到guest内部所用驱动的版本，如何确定是否需要截获？</li>
+</ul>
+</li>
+<li>支持reset同步：<ul>
+<li>个人称之为“伪同步”，最终能达到同步的效果，只能说是“误打误撞”，驱动的行为刚好可以被利用</li>
+</ul>
+</li>
+<li>因reset同步，硬件实现复杂度高</li>
+</ul>
+</li>
+<li><p>modern驱动</p>
+<ul>
+<li>比较合理的驱动/协议实现，是最合理的解决方案。这得益于随着硬件virtio普及，virtio社区与时俱进的更新。</li>
+</ul>
+</li>
+</ul>
+
 	
 	</div>
   <a type="button" href="/2021/11/18/pci-non-post/#more" class="btn btn-default more">Read More</a>
@@ -248,11 +315,11 @@
 		<h4>Tag Cloud</h4>
 		<ul class="tag_box inline list-unstyled">		
 		
-			<li><a href="/tags/virtio/">virtio<span>1</span></a></li>
+			<li><a href="/tags/体系结构/">体系结构<span>1</span></a></li>
 		
 			<li><a href="/tags/pcie/">pcie<span>1</span></a></li>
 		
-			<li><a href="/tags/体系结构/">体系结构<span>1</span></a></li>
+			<li><a href="/tags/virtio/">virtio<span>1</span></a></li>
 		
 		 
 		</ul>
